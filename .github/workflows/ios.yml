@@ -25,16 +25,7 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        run: |
-          xcodegen generate --project project.yml 2>&1 | tee xcodegen.log
-          exit ${PIPESTATUS[0]}
-
-      - name: Upload xcodegen log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcodegen-log
-          path: xcodegen.log
+        run: xcodegen generate --project project.yml
 
       - name: Show available destinations
         run: xcodebuild -project LiveCompOverlay.xcodeproj -list
