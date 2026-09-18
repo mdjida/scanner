@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Comp Overlay — Web Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Live Comp Overlay</h1>
+      <p class="subtitle">Upload a card screenshot and see live market comps.</p>
+    </header>
+
+    <section class="settings">
+      <label for="backend-url">Backend URL</label>
+      <input id="backend-url" type="text" value="http://localhost:8000" />
+      <button id="test-backend" type="button">Test Connection</button>
+      <span id="backend-status" class="status"></span>
+    </section>
+
+    <main class="workspace">
+      <div class="panel upload-panel">
+        <div id="drop-zone" class="drop-zone">
+          <p>Drag & drop an image here</p>
+          <p class="or">or</p>
+          <input id="file-input" type="file" accept="image/*" />
+          <button id="browse-button" type="button">Choose Image</button>
+        </div>
+        <div id="preview-container" class="preview-container hidden">
+          <img id="preview-image" alt="Uploaded card" />
+        </div>
+        <button id="scan-button" type="button" class="primary" disabled>Scan Card</button>
+      </div>
+
+      <div class="panel result-panel">
+        <div id="result-empty" class="empty-state">No card detected yet.</div>
+        <div id="result-content" class="result-content hidden">
+          <div class="card-header">
+            <h2 id="card-name">Card Name</h2>
+            <span id="card-variant" class="badge">Variant</span>
+          </div>
+          <p id="card-set" class="card-set">Set · ID</p>
+          <p id="card-price" class="card-price">$0.00</p>
+          <p id="card-source" class="card-source">Source</p>
+          <div id="score-badge" class="score-badge">100%</div>
+
+          <h3>Other possible matches</h3>
+          <ul id="candidates-list" class="candidates-list"></ul>
+        </div>
+      </div>
+
+      <div class="panel phone-panel">
+        <div class="phone">
+          <div class="dynamic-island">
+            <div class="island-content">
+              <span id="island-icon">scope</span>
+              <div class="island-text">
+                <p id="island-status">Ready to scan</p>
+                <p id="island-detail" class="detail">Upload a card</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone-screen">
+            <div id="island-expanded" class="island-expanded hidden">
+              <div class="expanded-card">
+                <div class="expanded-row">
+                  <span id="expanded-name">Card Name</span>
+                  <span id="expanded-score" class="score">100%</span>
+                </div>
+                <div class="expanded-row">
+                  <span id="expanded-set">Set · ID</span>
+                  <span id="expanded-variant" class="badge small">Variant</span>
+                </div>
+                <div class="expanded-price" id="expanded-price">$0.00</div>
+              </div>
+              <ul id="expanded-candidates" class="expanded-candidates"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

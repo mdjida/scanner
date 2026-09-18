@@ -5,6 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, Depends, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
@@ -24,6 +25,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Live Comp Overlay Backend", version="0.1.0", lifespan=lifespan)
+
+# Allow browsers (including phones on the same Wi-Fi) to call the API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(cards.router)
 app.include_router(identify.router)
 
