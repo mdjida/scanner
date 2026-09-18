@@ -117,20 +117,59 @@ def price_points_from_tcgplayer(tcg: dict, variant_name: str) -> List[dict]:
     return out
 
 
+def _first(d: dict, *keys):
+    for k in keys:
+        if d.get(k):
+            return d[k]
+    return None
+
+
+def _variant_label(detail: dict) -> str:
+    """Build a stable, human-readable variant label from TCGdex detail."""
+    vtype = (detail.get("type") or "normal").capitalize()
+    subtype = detail.get("subtype")
+    stamp = detail.get("stamp") or []
+    label = vtype
+    if subtype:
+        label += " " + subtype.replace("-", " ").capitalize()
+    if "1st-edition" in stamp or "1st-edition" in str(stamp).lower():
+        label += " 1st Edition"
+    elif "first-edition" in str(stamp).lower():
+        label += " 1st Edition"
+    return label
+
+
+def _price_points_for_detail(detail: dict, variant_label: str) -> List[dict]:
+    prices = []
+    pricing = detail.get("pricing") or detail.get("price") or {}
+    if pricing.get("tcgplayer"):
+        prices.extend(price_points_from_tcgplayer(pricing["tcgplayer"], variant_label))
+    if pricing.get("cardmarket"):
+        prices.extend(price_points_from_cardmarket(pricing["cardmarket"], variant_label))
+    return prices
+
+
 def extract_variants(card: dict) -> List[dict]:
-    """Return a list of variants with prices for a TCGdex full card object."""
-    details = card.get("variantsDetailed") or []
+    """Return a list of variants with prices for a TCGdex full card object.
+
+    TCGdex returns snake_case keys: variants_detailed / variantsDetailed,
+    third_party / thirdParty, pricing / prices. Read both forms defensively.
+    """
+    details = _first(card, "variants_detailed", "variantsDetailed") or []
     output = []
+    seen_labels = set()
     for detail in details:
-        variant_name = (detail.get("type") or "normal").capitalize()
-        prices = []
-        pricing = detail.get("pricing") or {}
-        if pricing.get("tcgplayer"):
-            prices.extend(price_points_from_tcgplayer(pricing["tcgplayer"], variant_name))
-        if pricing.get("cardmarket"):
-            prices.extend(price_points_from_cardmarket(pricing["cardmarket"], variant_name))
+        variant_label = _variant_label(detail)
+        if variant_label in seen_labels:
+            continue  # avoid duplicate physical variants (e.g. shadowless duplicates)
+        seen_labels.add(variant_label)
+        prices = _price_points_for_detail(detail, variant_label)
+        if not prices:
+            # Try the card-level pricing block as a fallback.
+            top_pricing = _first(card, "pricing", "prices") or {}
+            prices = _price_points_for_detail({"pricing": top_pricing}, variant_label)
         output.append({
-            "name": variant_name,
+            "name": variant_label,
             "type": detail.get("type"),
             "size": detail.get("size"),
             "prices": prices,

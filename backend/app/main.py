@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
 from app.models import Base, engine, get_db, Card, PricePoint
-from app.routers import cards, identify
+from app.routers import cards, identify, admin
 from app.config import HOST, PORT
 from app.models import Card
 from sqlalchemy.orm import Session
@@ -37,6 +37,7 @@ app.add_middleware(
 
 app.include_router(cards.router)
 app.include_router(identify.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")
