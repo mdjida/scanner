@@ -79,7 +79,7 @@ final class OverlayManager: ObservableObject {
         timer = nil
         messenger.autoScanEnabled = false
         Task {
-            await activity?.end(nil, dismissalPolicy: .immediate)
+            await activity?.end(nil)
         }
     }
     
