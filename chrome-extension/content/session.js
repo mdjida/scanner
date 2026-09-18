@@ -13,6 +13,7 @@
   let sTapBusy = false;
   let sAutoRunning = false;
   let sAutoTimer = null;
+  let sAutoBusy = false;
   let sPrevHash = null;
   let sLastSendMs = 0;
 
@@ -251,8 +252,6 @@
       }
     }, intervalMs);
   }
-
-  let sAutoBusy = false;
 
   function stopAuto() {
     sAutoRunning = false;

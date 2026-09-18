@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Live Comp Test Page</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔍%3C/text%3E%3C/svg%3E">
+  <style>
+    body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
+    #stage { position: relative; width: 100vw; height: 100vh; }
+    #card-img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    video {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 640px;
+      height: 480px;
+      object-fit: contain;
+      opacity: 0.01;
+    }
+    #hint {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="hint">Live Comp test page - video element present</div>
+    <!-- A real video element so the extension's video capture path can be exercised. -->
+    <video id="test-video" muted loop playsinline autoplay preload="auto"></video>
+    <img id="card-img" src="card-charizard.png" alt="Charizard" crossorigin="anonymous" />
+  </div>
+  <script>
+    // Feed a live canvas stream directly into the video element so it is always playable.
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(15);
+    const video = document.getElementById('test-video');
+    video.srcObject = stream;
+    video.play().catch(err => console.error('video play error', err));
+    let frames = 0;
+    function draw() {
+      ctx.fillStyle = `hsl(${(frames * 2) % 360}, 40%, 20%)`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw the card image on top so the frame actually contains a card.
+      const img = document.getElementById('card-img');
+      if (img && img.complete) {
+        const aspect = img.naturalWidth / img.naturalHeight;
+        let w = 240, h = w / aspect;
+        if (h > 360) { h = 360; w = h * aspect; }
+        ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      }
+      frames++;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+</html>

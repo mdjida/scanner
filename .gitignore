@@ -45,3 +45,7 @@ backend/smoke_card.png
 
 # Windows
 Thumbs.db
+
+tests/browser-extension/.venv/
+tests/browser-extension/user-data/
+tests/browser-extension/page-dump.html

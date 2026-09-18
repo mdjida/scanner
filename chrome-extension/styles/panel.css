@@ -85,7 +85,7 @@
 #lco-root {
   position: fixed;
   top: 80px;
-  right: 16px;
+  left: 16px;
   z-index: 999999;
   width: 320px;
   max-width: 90vw;

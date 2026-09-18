@@ -136,6 +136,7 @@
         const out = captureFromVideo(video, crop, maxWidth, quality);
         if (out) return out;
       } catch (e) {
+        console.warn('[LiveComp] video capture failed:', e?.name, e?.message);
         // SecurityError ? tainted canvas. Fall through to tab capture.
       }
       const content = videoContentRect(video, found.offset);
@@ -165,6 +166,7 @@
       }
     }
 
+    console.warn('[LiveComp] no usable video found, falling back to tab capture');
     return captureFromTab(opts.viewportRegion || null, maxWidth, quality);
   }
 

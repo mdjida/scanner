@@ -34,7 +34,9 @@
       "matches": [
         "*://*.whatnot.com/*",
         "*://*.twitch.tv/*",
-        "*://*.youtube.com/*"
+        "*://*.youtube.com/*",
+        "*://localhost/*",
+        "*://localhost:*/*"
       ],
       "js": [
         "content/capture.js",
