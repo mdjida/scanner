@@ -8,7 +8,7 @@ public struct OverlayResultPayload: Codable {
     public let setName: String
     public let setCode: String?
     public let localId: String?
-    public let marketPrice: String
+    public let marketPrice: String?
     public let variant: String?
     public let lowPrice: String?
     public let midPrice: String?

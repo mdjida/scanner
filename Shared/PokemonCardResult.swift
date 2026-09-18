@@ -131,9 +131,15 @@ private extension TCGdexTCGplayerPrice {
             guard let value = value else { continue }
             let pts = value.pricePoints(variant: key, source: source, currency: currency)
             out.append(contentsOf: pts.map {
-                var p = $0
-                p.updatedAt = date ?? p.updatedAt
-                return p
+                PokemonPrice(
+                    priceSource: $0.priceSource,
+                    priceType: $0.priceType,
+                    condition: $0.condition,
+                    variant: $0.variant,
+                    currency: $0.currency,
+                    price: $0.price,
+                    updatedAt: date ?? $0.updatedAt
+                )
             })
         }
         return out
