@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Live Comp Overlay",
+  "version": "0.1.0",
+  "description": "Detect cards in livestreams and overlay live market comps.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "alarms",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "*://*.whatnot.com/*",
+    "*://*.twitch.tv/*",
+    "*://*.youtube.com/*",
+    "*://*.ebay.com/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.whatnot.com/*",
+        "*://*.twitch.tv/*",
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/capture.js",
+        "content/hash.js",
+        "content/ui.js",
+        "content/session.js",
+        "content/livestream.js"
+      ],
+      "css": [
+        "styles/panel.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
