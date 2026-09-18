@@ -1,0 +1,10 @@
+git_url("https://github.com/mdjida/scanner-certificates.git")
+
+storage_mode("git")
+
+type("development") # can be development, adhoc, appstore
+
+# Uncomment and fill in once you have an Apple Developer account:
+# app_identifier(["com.livecompoverlay.app", "com.livecompoverlay.app.broadcast", "com.livecompoverlay.app.widget"])
+# username("your-apple-id@example.com")
+# team_id("YOUR_TEAM_ID")

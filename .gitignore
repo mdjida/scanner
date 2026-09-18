@@ -1,0 +1,47 @@
+# Xcode
+*.xcworkspace
+*.xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# XcodeGen
+*.xcodeproj
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Ruby / Fastlane
+vendor/
+Gemfile.lock
+*.gem
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Python backend virtual environment
+backend/venv/
+backend/python_embed/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/*.db
+backend/*.db-journal
+backend/data/
+backend/cache/
+backend/smoke_card.png
+*.pyc
+.pytest_cache/
+
+# Windows
+Thumbs.db

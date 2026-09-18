@@ -1,0 +1,95 @@
+name: LiveCompOverlay
+targets:
+  LiveCompOverlay:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - LiveCompOverlay
+      - Shared
+      - Shared/TCGdex
+    info:
+      path: LiveCompOverlay/Info.plist
+      properties:
+        CFBundleDisplayName: Live Comp Overlay
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiresFullScreen: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    entitlements:
+      path: LiveCompOverlay/LiveCompOverlay.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.livecompoverlay.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.app
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: Shared
+
+  LiveCompOverlayBroadcast:
+    type: appExtension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - LiveCompOverlayBroadcast
+    info:
+      path: LiveCompOverlayBroadcast/Info.plist
+      properties:
+        CFBundleDisplayName: Live Comp Overlay Capture
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          NSExtensionServiceDeviceEndpoint: false
+          NSExtensionServiceEndpoint: false
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.app.broadcast
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: Shared
+      - sdk: ReplayKit.framework
+
+  LiveCompOverlayWidget:
+    type: appExtension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - LiveCompOverlayWidget
+    info:
+      path: LiveCompOverlayWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Live Comp Overlay Widget
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).WidgetBundle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.app.widget
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: Shared
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework
+
+  Shared:
+    type: framework
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.shared
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
