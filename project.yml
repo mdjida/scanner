@@ -23,6 +23,7 @@ targets:
     entitlements:
       path: LiveCompOverlay/LiveCompOverlay.entitlements
       properties:
+        com.apple.developer.live-activities: true
         com.apple.security.application-groups:
           - group.com.livecompoverlay.shared
     settings:
@@ -34,7 +35,7 @@ targets:
       - target: Shared
 
   LiveCompOverlayBroadcast:
-    type: appExtension
+    type: app-extension
     platform: iOS
     deploymentTarget: "16.1"
     sources:
@@ -49,6 +50,11 @@ targets:
           NSExtensionServiceDeviceEndpoint: false
           NSExtensionServiceEndpoint: false
           RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    entitlements:
+      path: LiveCompOverlayBroadcast/LiveCompOverlayBroadcast.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.livecompoverlay.shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.app.broadcast
@@ -59,7 +65,7 @@ targets:
       - sdk: ReplayKit.framework
 
   LiveCompOverlayWidget:
-    type: appExtension
+    type: app-extension
     platform: iOS
     deploymentTarget: "16.1"
     sources:
@@ -71,6 +77,11 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).WidgetBundle
+    entitlements:
+      path: LiveCompOverlayWidget/LiveCompOverlayWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.livecompoverlay.shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.livecompoverlay.app.widget

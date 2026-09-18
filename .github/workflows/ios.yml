@@ -25,7 +25,8 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: |
+          xcodegen generate --project project.yml
 
       - name: Show available destinations
         run: xcodebuild -project LiveCompOverlay.xcodeproj -list

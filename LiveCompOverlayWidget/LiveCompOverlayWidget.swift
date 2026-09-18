@@ -185,3 +185,6 @@ struct LiveCompOverlayWidgetBundle: WidgetBundle {
         OverlayLiveActivityWidget()
     }
 }
+
+// Convenience alias matching NSExtensionPrincipalClass in Info.plist.
+typealias LiveActivityBundle = LiveCompOverlayWidgetBundle
