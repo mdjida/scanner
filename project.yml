@@ -3,7 +3,7 @@ targets:
   LiveCompOverlay:
     type: application
     platform: iOS
-    deploymentTarget: "16.1"
+    deploymentTarget: "16.2"
     sources:
       - LiveCompOverlay
       - Shared
@@ -37,7 +37,7 @@ targets:
   LiveCompOverlayBroadcast:
     type: app-extension
     platform: iOS
-    deploymentTarget: "16.1"
+    deploymentTarget: "16.2"
     sources:
       - LiveCompOverlayBroadcast
     info:
@@ -67,7 +67,7 @@ targets:
   LiveCompOverlayWidget:
     type: app-extension
     platform: iOS
-    deploymentTarget: "16.1"
+    deploymentTarget: "16.2"
     sources:
       - LiveCompOverlayWidget
     info:
@@ -96,7 +96,7 @@ targets:
   Shared:
     type: framework
     platform: iOS
-    deploymentTarget: "16.1"
+    deploymentTarget: "16.2"
     sources:
       - Shared
     settings:
