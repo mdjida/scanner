@@ -10,6 +10,7 @@ CONDITION_MULTIPLIERS = {
     "lp": 0.72,
     "mp": 0.50,
     "hp": 0.35,
+    "dmg": 0.20,
 }
 
 

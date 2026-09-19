@@ -17,6 +17,9 @@ const cardPrice = document.getElementById('card-price');
 const cardSource = document.getElementById('card-source');
 const scoreBadge = document.getElementById('score-badge');
 const candidatesList = document.getElementById('candidates-list');
+const condTable = document.getElementById('cond-table');
+const condTableBody = condTable.querySelector('tbody');
+const estNote = document.getElementById('est-note');
 
 const dynamicIsland = document.querySelector('.dynamic-island');
 const islandStatus = document.getElementById('island-status');
@@ -137,6 +140,29 @@ function renderResult(data) {
   cardSource.textContent = market.source ? `Source: ${market.source}` : '';
   scoreBadge.textContent = formatScore(best.score);
 
+  condTableBody.innerHTML = '';
+  let hasEstimates = false;
+  const condOrder = ['nm', 'lp', 'mp', 'hp', 'dmg'];
+  const condLabels = { nm: 'NM', lp: 'LP', mp: 'MP', hp: 'HP', dmg: 'DMG' };
+  if (data.prices_by_condition) {
+    condOrder.forEach((cond) => {
+      const p = data.prices_by_condition[cond];
+      if (!p || p.price == null) return;
+      if (p.estimated) hasEstimates = true;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="cond-label">${condLabels[cond] || cond}${p.estimated ? ' *' : ''}</td>
+        <td class="cond-price">${formatCurrency(p.price, p.currency)}</td>
+      `;
+      condTableBody.appendChild(row);
+    });
+    condTable.classList.toggle('hidden', condTableBody.children.length === 0);
+    estNote.classList.toggle('hidden', !hasEstimates);
+  } else {
+    condTable.classList.add('hidden');
+    estNote.classList.add('hidden');
+  }
+
   resultEmpty.classList.add('hidden');
   resultContent.classList.remove('hidden');
 
@@ -221,4 +247,9 @@ function bestPrice(prices) {
 function formatScore(score) {
   if (score == null) return 'N/A';
   return `${Math.round(score * 100)}%`;
+}
+
+function formatCurrency(value, currency = 'USD') {
+  const symbol = currency === 'EUR' ? '€' : '$';
+  return `${symbol}${Number(value).toFixed(2)}`;
 }

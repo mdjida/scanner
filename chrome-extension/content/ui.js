@@ -11,7 +11,7 @@
     overpriced: '#ef4444',
   };
 
-  const CONDITION_LABELS = { nm: 'NM', lp: 'LP', mp: 'MP', hp: 'HP' };
+  const CONDITION_LABELS = { nm: 'NM', lp: 'LP', mp: 'MP', hp: 'HP', dmg: 'DMG' };
 
   function formatCurrency(value) {
     if (value == null || isNaN(value)) return 'N/A';
