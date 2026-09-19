@@ -11,6 +11,8 @@
     overpriced: '#ef4444',
   };
 
+  const CONDITION_LABELS = { nm: 'NM', lp: 'LP', mp: 'MP', hp: 'HP' };
+
   function formatCurrency(value) {
     if (value == null || isNaN(value)) return 'N/A';
     return new Intl.NumberFormat(undefined, {
@@ -34,6 +36,34 @@
       if (p) return { value: p.price, type, source: p.price_source };
     }
     return null;
+  }
+
+  function conditionTable(pricesByCondition) {
+    if (!pricesByCondition) return '';
+    const order = ['nm', 'lp', 'mp', 'hp'];
+    const rows = order
+      .map(cond => {
+        const p = pricesByCondition[cond];
+        if (!p || p.price == null) return '';
+        return `<tr>
+          <td class="lco-cond">${CONDITION_LABELS[cond] || cond}${p.estimated ? ' *' : ''}</td>
+          <td class="lco-cond-price">${formatCurrency(p.price)}</td>
+        </tr>`;
+      })
+      .join('');
+    if (!rows) return '';
+    return `<div class="lco-section">Conditions</div>
+      <table class="lco-cond-table">
+        <thead><tr><th>Cond</th><th>Price</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${Object.values(pricesByCondition).some(p => p.estimated) ? '<div class="lco-est-note">* estimated from market price</div>' : ''}`;
+  }
+
+  function confidenceBadge(confidence) {
+    if (!confidence) return '';
+    const cls = confidence === 'high' ? 'lco-conf-high' : confidence === 'medium' ? 'lco-conf-medium' : confidence === 'low' ? 'lco-conf-low' : 'lco-conf-uncertain';
+    return `<div class="lco-confidence ${cls}">${String(confidence).toUpperCase()}</div>`;
   }
 
   function makeDraggable(el) {
@@ -120,10 +150,12 @@
 
     body.innerHTML = `
       ${cardImg}
+      ${confidenceBadge(data.confidence)}
       <div class="lco-card-title">${card.name || 'Unknown'}</div>
       <div class="lco-card-subtitle">${card.set_name || ''} ${card.local_id || ''} - ${card.variant || 'Normal'}</div>
       <div class="lco-price">${price ? formatCurrency(price.value) : 'N/A'}</div>
       <div class="lco-source">${price ? `${price.source} - ${price.type}` : ''}</div>
+      ${conditionTable(data.prices_by_condition)}
       ${best?.score != null ? `<div class="lco-score" style="background:${scoreColor(best.score)}">${formatScore(best.score)}</div>` : ''}
       ${candidatesHtml}
     `;

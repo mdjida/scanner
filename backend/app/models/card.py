@@ -12,6 +12,7 @@ class Card(Base):
     local_id = Column(String, nullable=True)
     set_code = Column(String, nullable=True, index=True)
     set_name = Column(String, nullable=True)
+    set_card_count = Column(Integer, nullable=True)
     rarity = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
     variant = Column(String, nullable=True)

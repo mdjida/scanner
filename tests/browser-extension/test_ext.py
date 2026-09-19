@@ -73,16 +73,23 @@ async def main():
         await tap.click()
         print('Clicked Tap Scan')
         # Wait for backend call and result panel.
-        for i in range(20):
+        hit_assert = False
+        for i in range(60):
             await asyncio.sleep(0.5)
             root = await page.query_selector('#lco-root')
             if root:
                 text = await root.inner_text()
                 if text and 'Identifying' not in text:
                     print('Result panel populated:', text[:200])
+                    if 'Charizard' in text:
+                        print('ASSERT PASS: Charizard resolved first')
+                        hit_assert = True
                     break
             if any('/identify' in r for r in requests):
                 print('Identify request observed')
+        if not hit_assert:
+            print('ASSERT FAIL: Charizard not top result')
+            errors.append('ASSERT FAIL: Charizard not top result')
 
         # Test Auto Scan
         print('Starting Auto Scan test')

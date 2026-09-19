@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from app.models import get_db, Card, PricePoint
 
@@ -25,6 +25,8 @@ def catalog_status(db: Session = Depends(get_db)):
 
 
 class PricePointOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     price_source: str
     price_type: str
     condition: Optional[str]
@@ -35,6 +37,8 @@ class PricePointOut(BaseModel):
 
 
 class CardOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     external_id: str
     name: str
@@ -45,9 +49,6 @@ class CardOut(BaseModel):
     image_url: Optional[str]
     variant: Optional[str]
     prices: List[PricePointOut]
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("/search", response_model=List[CardOut])

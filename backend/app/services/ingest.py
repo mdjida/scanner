@@ -15,7 +15,7 @@ EMBED_BATCH_SIZE = 32
 PROGRESS_INTERVAL = 100
 
 _resume_lock = threading.Lock()
-_resume_completed: set[str] = set()
+_resume_counts: dict[str, int] = {}  # set_code -> count of distinct card ids already in DB
 
 
 class IngestProgress:
@@ -58,20 +58,29 @@ PROGRESS = IngestProgress()
 
 
 def reset_resume_state():
-    global _resume_completed
+    global _resume_counts
     with _resume_lock:
-        _resume_completed = set()
+        _resume_counts = {}
 
 
-def _load_resume_state(db: Session) -> set:
-    global _resume_completed
-    if _resume_completed:
-        return _resume_completed
+def _load_resume_state(db: Session) -> dict:
+    """Return {set_code: distinct_card_id_count} already present in the DB."""
+    global _resume_counts
+    if _resume_counts:
+        return _resume_counts
     with _resume_lock:
-        if not _resume_completed:
-            rows = db.query(Card.set_code).distinct().all()
-            _resume_completed = {r[0] for r in rows if r[0]}
-    return _resume_completed
+        if not _resume_counts:
+            rows = (
+                db.query(Card.set_code, Card.id)
+                .filter(Card.set_code.isnot(None))
+                .distinct()
+                .all()
+            )
+            counts: dict[str, int] = {}
+            for set_code, _card_id in rows:
+                counts[set_code] = counts.get(set_code, 0) + 1
+            _resume_counts = counts
+    return _resume_counts
 
 
 def ingest_all(
@@ -104,7 +113,10 @@ def ingest_all(
     PROGRESS.started_at = datetime.utcnow()
     PROGRESS.error = None
 
-    resume_sets = _load_resume_state(db)
+    resume_counts = _load_resume_state(db)
+    # Diagnostics: sets already present (partial) will be re-ingested,
+    # so clear the resume map to avoid counting freshly-added cards as "skipped".
+    resume_counts = {k: v for k, v in resume_counts.items()}
     created_count = 0
 
     for set_index, s in enumerate(sets):
@@ -127,11 +139,13 @@ def ingest_all(
 
         set_name = full_set.get("name") or s.get("name") or PROGRESS.current_set
 
-        # Skip already-ingested sets (unless force / from_catalog re-run).
-        if set_id in resume_sets:
+        # Skip only sets already fully present in the DB (resumable partial re-runs re-ingest).
+        expected_cards = (full_set.get("cardCount") or {}).get("total") or len(light_cards)
+        existing_cards = resume_counts.get(set_id, 0)
+        if existing_cards >= expected_cards:
             PROGRESS.sets_done += 1
             PROGRESS.cards_skipped += len(light_cards)
-            print(f"[{set_index + 1}/{len(sets)}] {PROGRESS.current_set}: skipped (already ingested)")
+            print(f"[{set_index + 1}/{len(sets)}] {PROGRESS.current_set}: skipped (already ingested, {existing_cards}/{expected_cards})")
             continue
 
         PROGRESS.cards_total += len(light_cards)
@@ -184,7 +198,8 @@ def ingest_all(
 
             for variant in variants:
                 external_id = f"{card_id}_{variant['name']}"
-                _upsert_card(db, external_id, card_id, full_card, set_code, set_name, release_date, variant, image_url, emb)
+                set_card_count = (full_card.get("set", {}) or {}).get("cardCount", {}).get("total")
+                _upsert_card(db, external_id, card_id, full_card, set_code, set_name, release_date, variant, image_url, emb, set_card_count)
                 created_count += 1
                 PROGRESS.cards_done += 1
 
@@ -193,7 +208,7 @@ def ingest_all(
 
         db.commit()
         PROGRESS.sets_done += 1
-        resume_sets.add(set_id)
+        resume_counts[set_id] = expected_cards
         print(f"  Done with {set_name}. Total variants so far: {created_count}")
 
     print("Building FAISS index...")
@@ -230,7 +245,8 @@ def _ingest_smoke_test(db: Session) -> int:
 
     for variant in variants:
         external_id = f"{card_id}_{variant['name']}"
-        _upsert_card(db, external_id, card_id, full_card, set_id, set_name, release_date, variant, image_url, emb)
+        set_card_count = (full_card.get("set", {}) or {}).get("cardCount", {}).get("total")
+        _upsert_card(db, external_id, card_id, full_card, set_id, set_name, release_date, variant, image_url, emb, set_card_count)
 
     db.commit()
     index.build_faiss_index(db, force=True)
@@ -280,7 +296,8 @@ def _upsert_card(
     release_date: Optional[str],
     variant: dict,
     image_url: str,
-    emb: Optional
+    emb: Optional,
+    set_card_count: Optional[int] = None,
 ):
     # Card.id is the TCGdex card ID shared by all variants; delete the whole
     # card first so re-ingesting any variant can't hit the PK constraint.
@@ -297,6 +314,7 @@ def _upsert_card(
         local_id=full_card.get("localId"),
         set_code=set_code,
         set_name=set_name,
+        set_card_count=set_card_count,
         rarity=full_card.get("rarity"),
         image_url=image_url,
         variant=variant["name"],

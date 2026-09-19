@@ -46,6 +46,11 @@ backend/smoke_card.png
 # Windows
 Thumbs.db
 
+# Runtime logs/cache
+backend/uvicorn.log
+backend/uvicorn.err
+backend/image_cache/
+
 tests/browser-extension/.venv/
 tests/browser-extension/user-data/
 tests/browser-extension/page-dump.html

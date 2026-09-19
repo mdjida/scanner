@@ -35,11 +35,12 @@
     });
   }
 
-  async function identify(jpeg) {
+  async function identify(jpeg, useOcr = 1) {
     const url = (await getBackendUrl()).replace(/\/$/, '') + '/identify';
     const bin = LiveCompHash.base64ToArrayBuffer(jpeg);
     const form = new FormData();
     form.append('file', new Blob([bin], { type: 'image/jpeg' }), 'frame.jpg');
+    form.append('use_ocr', String(useOcr));
 
     const res = await fetch(url, { method: 'POST', body: form });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -198,7 +199,7 @@
         jpegQuality: SCAN_PARAMS.jpegQuality,
       });
       if (!frame?.jpeg) throw new Error('Could not capture frame');
-      const data = await identify(frame.jpeg);
+      const data = await identify(frame.jpeg, 1);
       LiveCompUI.renderResult(data);
     } catch (err) {
       LiveCompUI.showError(err.message);
@@ -239,10 +240,10 @@
         const isStationary = sPrevHash !== null && LiveCompHash.hammingDistance(hash, sPrevHash) < diffThresholdBits;
         if (isStationary && now - sLastSendMs < SCAN_PARAMS.stationaryRefresh * 1000) return;
 
-        const data = await identify(frame.jpeg);
+        const data = await identify(frame.jpeg, 0);
         sPrevHash = hash;
         sLastSendMs = Date.now();
-        if (data?.best_match?.score >= 0.90) {
+        if (data?.best_match?.score >= 0.85) {
           LiveCompUI.renderResult(data);
         }
       } catch (err) {
