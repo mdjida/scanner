@@ -10,6 +10,9 @@ import retrofit2.http.Query
 import okhttp3.MultipartBody
 import com.google.gson.annotations.SerializedName
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
 interface BackendApi {
     @GET("/health")
     suspend fun health(): Response<Map<String, String>>
@@ -34,6 +37,7 @@ data class BackendInfo(
     val faiss_index_ready: Boolean,
 )
 
+@Parcelize
 data class IdentifyResponse(
     val best_match: Candidate,
     val candidates: List<Candidate>,
@@ -42,13 +46,15 @@ data class IdentifyResponse(
     val collector: String?,
     val ocr_name: String?,
     val prices_by_condition: Map<String, PriceByCondition>?,
-)
+) : Parcelable
 
+@Parcelize
 data class Candidate(
     val score: Double,
     val card: Card,
-)
+) : Parcelable
 
+@Parcelize
 data class Card(
     val id: String,
     val external_id: String,
@@ -59,10 +65,11 @@ data class Card(
     val rarity: String?,
     val image_url: String?,
     val variant: String?,
-)
+) : Parcelable
 
+@Parcelize
 data class PriceByCondition(
     val price: Double?,
     val currency: String?,
     val estimated: Boolean,
-)
+) : Parcelable

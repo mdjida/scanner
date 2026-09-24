@@ -1,108 +1,209 @@
 package com.livecomp.scanner
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.PixelFormat
+import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import android.net.Uri
+import android.provider.Settings
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import coil.compose.AsyncImage
-import com.google.zxing.integration.android.IntentIntegrator
 import com.livecomp.scanner.ui.theme.LiveCompTheme
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.ByteArrayOutputStream
 
 class MainActivity : ComponentActivity() {
-    private val tag = "MainActivity"
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // Result doesn't matter; user either granted or denied in settings.
+    }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            Toast.makeText(this, "Camera permission is required", Toast.LENGTH_LONG).show()
+    private val projectionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val intent = Intent(this, ScreenCaptureService::class.java).apply {
+                action = ScreenCaptureService.ACTION_START
+                putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
+                putExtra(ScreenCaptureService.EXTRA_DATA, result.data)
+            }
+            startForegroundService(intent)
+            Toast.makeText(this, "Capture started", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Screen capture permission denied", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-
         val app = application as ScannerApp
         setContent {
             LiveCompTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    ScannerScreen(
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    ControlScreen(
                         app = app,
-                        onScanQr = { startQrScan() }
+                        onStartCapture = { startCapture() },
+                        onStopCapture = { stopService(Intent(this, ScreenCaptureService::class.java)) }
                     )
                 }
             }
         }
+
+        registerResultReceiver()
     }
 
-    private fun startQrScan() {
-        IntentIntegrator(this)
-            .setPrompt("Scan the QR code shown on your PC")
-            .setBeepEnabled(false)
-            .initiateScan()
+    private fun startCapture() {
+        if (!Settings.canDrawOverlays(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            overlayPermissionLauncher.launch(intent)
+            return
+        }
+        val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        projectionLauncher.launch(mgr.createScreenCaptureIntent())
+    }
+
+    private fun registerResultReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent?.getParcelableExtra("result", IdentifyResponse::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent?.getParcelableExtra("result")
+                }
+                result?.let { showOverlay(it) }
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, IntentFilter(ScreenCaptureService.ACTION_RESULT), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(receiver, IntentFilter(ScreenCaptureService.ACTION_RESULT))
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun showOverlay(result: IdentifyResponse) {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val card = result.best_match.card
+        val prices = result.prices_by_condition ?: emptyMap()
+
+        val view = ComposeView(this).apply {
+            setContent {
+                LiveCompTheme {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 6.dp,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(card.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text("${card.set_name ?: ""} ${card.local_id ?: ""}", style = MaterialTheme.typography.bodySmall)
+                            Text("Confidence: ${result.confidence}", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            listOf("nm" to "NM", "lp" to "LP", "mp" to "MP", "hp" to "HP", "dmg" to "DMG")
+                                .forEach { (key, label) ->
+                                    val p = prices[key]
+                                    if (p?.price != null) {
+                                        val sym = if (p.currency == "EUR") "€" else "$"
+                                        val est = if (p.estimated) " *" else ""
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("$label$est")
+                                            Text("$sym${"%.2f".format(p.price)}", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+        }
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = 80
+        }
+
+        var startX = 0f
+        var startY = 0f
+        var initialX = 0
+        var initialY = 0
+        view.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = event.rawX
+                    startY = event.rawY
+                    initialX = params.x
+                    initialY = params.y
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    params.x = initialX + (event.rawX - startX).toInt()
+                    params.y = initialY + (event.rawY - startY).toInt()
+                    wm.updateViewLayout(view, params)
+                }
+            }
+            true
+        }
+
+        try {
+            wm.addView(view, params)
+        } catch (e: Exception) {
+            // Already showing; ignore.
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScannerScreen(app: ScannerApp, onScanQr: () -> Unit) {
+fun ControlScreen(
+    app: ScannerApp,
+    onStartCapture: () -> Unit,
+    onStopCapture: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
     var backendUrl by remember { mutableStateOf("http://192.168.1.100:8000") }
-    var status by remember { mutableStateOf("Checking…") }
-    var isScanning by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<IdentifyResponse?>(null) }
+    var status by remember { mutableStateOf("Idle") }
     var showSettings by remember { mutableStateOf(false) }
-
-    val capturedBitmap = remember { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(Unit) {
         app.backendUrl.collect { saved ->
             saved?.let {
                 backendUrl = it
-                BackendClient.setBaseUrl(it)
-                checkStatus { msg -> status = msg }
+                try {
+                    BackendClient.setBaseUrl(it)
+                } catch (_: Exception) {}
             }
         }
     }
@@ -123,69 +224,46 @@ fun ScannerScreen(app: ScannerApp, onScanQr: () -> Unit) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CameraPreview(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(3f / 4f)
-                    .padding(12.dp)
-                    .clip(RoundedCornerShape(16.dp)),
-                onImage = { bitmap ->
-                    capturedBitmap.value = bitmap
-                }
+            Text(
+                text = "Detect Pokémon cards while watching Whatnot, Twitch, or YouTube on your phone.",
+                style = MaterialTheme.typography.bodyLarge
             )
 
-            Text(
-                text = status,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(8.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text(text = status, color = MaterialTheme.colorScheme.primary)
 
             Button(
                 onClick = {
-                    val bmp = capturedBitmap.value
-                    if (bmp == null) {
-                        status = "No camera frame yet"
-                        return@Button
-                    }
-                    isScanning = true
                     scope.launch {
-                        status = "Scanning…"
                         try {
                             BackendClient.setBaseUrl(backendUrl)
-                            val bytes = bitmapToPng(bmp)
-                            val body = bytes.toRequestBody("image/png".toMediaTypeOrNull())
-                            val part = MultipartBody.Part.createFormData(
-                                "file", "card.png", body
-                            )
-                            val response = BackendClient.api.identify(part)
-                            if (response.isSuccessful) {
-                                result = response.body()
-                                status = "Resolved: ${result?.best_match?.card?.name ?: "?"}"
-                            } else {
-                                status = "Backend error: ${response.code()}"
-                            }
+                            val res = BackendClient.api.health()
+                            status = if (res.isSuccessful) "Connected" else "HTTP ${res.code()}"
                         } catch (e: Exception) {
-                            Log.e("ScannerScreen", "Scan failed", e)
-                            status = "Failed: ${e.message ?: "unknown"}"
-                        } finally {
-                            isScanning = false
+                            status = "Unreachable: ${e.message}"
                         }
                     }
                 },
-                enabled = !isScanning,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isScanning) "Scanning…" else "Scan Card")
+                Text("Test Backend")
             }
 
-            result?.let { data ->
-                ResultCard(data)
+            Button(
+                onClick = onStartCapture,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Start Screen Capture")
+            }
+
+            OutlinedButton(
+                onClick = onStopCapture,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Stop Capture")
             }
         }
     }
@@ -195,72 +273,10 @@ fun ScannerScreen(app: ScannerApp, onScanQr: () -> Unit) {
             currentUrl = backendUrl,
             onSave = { newUrl ->
                 backendUrl = newUrl
-                scope.launch {
-                    app.setBackendUrl(newUrl)
-                    BackendClient.setBaseUrl(newUrl)
-                    checkStatus { msg -> status = msg }
-                }
+                scope.launch { app.setBackendUrl(newUrl) }
             },
-            onScanQr = onScanQr,
             onDismiss = { showSettings = false }
         )
-    }
-}
-
-@Composable
-fun ResultCard(data: IdentifyResponse) {
-    val card = data.best_match.card
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row {
-                card.image_url?.let { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = card.name,
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(card.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("${card.set_name ?: ""} ${card.local_id ?: ""}", style = MaterialTheme.typography.bodyMedium)
-                    Text("Variant: ${card.variant ?: "Normal"}", style = MaterialTheme.typography.bodySmall)
-                    Text("Confidence: ${data.confidence}", style = MaterialTheme.typography.bodySmall)
-                    Text("Verified: ${data.verified_by.joinToString()}", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            data.prices_by_condition?.let { prices ->
-                val order = listOf("nm", "lp", "mp", "hp", "dmg")
-                val labels = mapOf("nm" to "NM", "lp" to "LP", "mp" to "MP", "hp" to "HP", "dmg" to "DMG")
-                Column {
-                    order.forEach { cond ->
-                        val p = prices[cond]
-                        if (p?.price != null) {
-                            val symbol = if (p.currency == "EUR") "€" else "$"
-                            val est = if (p.estimated) " *" else ""
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("${labels[cond]}$est", fontWeight = FontWeight.Bold)
-                                Text("$symbol${"%.2f".format(p.price)}")
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -268,7 +284,6 @@ fun ResultCard(data: IdentifyResponse) {
 fun SettingsDialog(
     currentUrl: String,
     onSave: (String) -> Unit,
-    onScanQr: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var url by remember { mutableStateOf(currentUrl) }
@@ -276,18 +291,12 @@ fun SettingsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Backend URL") },
         text = {
-            Column {
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-                    label = { Text("http://192.168.x.x:8000") },
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = onScanQr) {
-                    Text("Scan QR from PC")
-                }
-            }
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("http://192.168.x.x:8000") },
+                singleLine = true
+            )
         },
         confirmButton = {
             TextButton(onClick = { onSave(url); onDismiss() }) {
@@ -300,23 +309,4 @@ fun SettingsDialog(
             }
         }
     )
-}
-
-fun bitmapToPng(bitmap: Bitmap): ByteArray {
-    val stream = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-    return stream.toByteArray()
-}
-
-suspend fun checkStatus(onStatus: (String) -> Unit) {
-    try {
-        val res = BackendClient.api.health()
-        if (res.isSuccessful) {
-            onStatus("Connected")
-        } else {
-            onStatus("HTTP ${res.code()}")
-        }
-    } catch (e: Exception) {
-        onStatus("Unreachable: ${e.message}")
-    }
 }

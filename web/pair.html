@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Comp — Pair Phone</title>
+  <link rel="stylesheet" href="mobile-pair.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Pair Android Phone</h1>
+    <p class="subtitle">Show this QR code on your PC screen, then scan it with the Android app's camera.</p>
+
+    <div class="qr-wrap" id="qr"></div>
+    <div class="url" id="url">Detecting…</div>
+
+    <ol class="steps">
+      <li>Start the Android app and tap <strong>Settings → Scan QR</strong>.</li>
+      <li>Point the Android camera at the QR code above.</li>
+      <li>Return to the app and tap <strong>Start Capture</strong>.</li>
+    </ol>
+
+    <a href="index.html" class="button">Open desktop demo</a>
+
+    <div class="footer">
+      If the camera won't scan, type the URL manually in the app's settings.
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    async function discover() {
+      try {
+        const res = await fetch('/admin/info');
+        const data = await res.json();
+        const url = data.backend_url || `http://${data.lan_ip}:8000`;
+        document.getElementById('url').textContent = url;
+        QRCode.toCanvas(document.getElementById('qr'), url, { width: 220 }, (err) => {
+          if (err) console.error(err);
+        });
+      } catch (e) {
+        document.getElementById('url').textContent = 'Could not detect backend. Make sure the PC server is running.';
+      }
+    }
+    discover();
+  </script>
+</body>
+</html>

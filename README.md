@@ -18,9 +18,14 @@ For phone-browser testing, see [web/README.md](web/README.md).
 
 ## Android app
 
-A native Android scanner is included in [`android/`](android/). It connects to the same Python backend running on your local PC (recommended for heavy CLIP/OCR inference on low-RAM devices).
+A native Android scanner is included in [`android/`](android/). It can run in two modes:
 
-### 1. Start the PC backend
+1. **Screen capture mode** — detects cards shown on your phone screen (Whatnot, Twitch, YouTube livestreams) and shows a floating overlay with the card + prices.
+2. **Camera mode** — point the phone camera at a physical card.
+
+Both modes send images to the same Python backend for identification. For now the backend runs on your PC; a cloud-hosted version can be added later.
+
+### Run the backend on your PC
 
 ```powershell
 cd C:\Users\M\LiveCompOverlay\backend
@@ -29,24 +34,27 @@ $env:HOST="0.0.0.0"
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 2. Pair your phone
+The terminal prints the exact LAN URL, e.g. `http://192.168.1.119:8000`.
 
-Open `http://<pc-ip>:8000/mobile.html` in any browser on the same Wi-Fi; it shows a QR code. In the Android app tap **Settings → Scan QR**.
+### Android setup
 
-### 3. Scan cards
-
-Tap **Scan Card** in the app. The PC backend returns the exact card, set, collector number, confidence, and TCGdex prices by condition.
+1. Open `android/` in Android Studio.
+2. Build/run on your phone (phone must be on same Wi-Fi as PC).
+3. In the app, go to **Settings** and enter the PC URL (or scan the QR code at `http://<pc-ip>:8000/pair.html`).
+4. Tap **Start Screen Capture**, then switch to your streaming app.
+5. A floating card overlay appears whenever a Pokémon card is recognized.
 
 ### Notes
 
-- The backend now unloads the RapidOCR ONNX session after each scan by default (`LCO_UNLOAD_OCR_AFTER_SCAN=1`) to keep 8 GB PCs from freezing under back-to-back scans.
-- If you have more RAM, set `$env:LCO_UNLOAD_OCR_AFTER_SCAN="0"` for faster repeat scans.
+- The backend unloads RapidOCR after each scan by default (`LCO_UNLOAD_OCR_AFTER_SCAN=1`) to keep 8 GB PCs from freezing under back-to-back scans. If you have more RAM, set `$env:LCO_UNLOAD_OCR_AFTER_SCAN="0"`.
+- Screen capture requires Android 10+ and a foreground-service notification.
+- Protected DRM streams may show a black screen and cannot be captured.
 
 ## Architecture
 
 - **iOS / Android app** detects cards from screen-capture frames or camera and sends cropped images to the backend.
 - **Backend** (Python/FastAPI) runs on your local PC for free. It identifies cards using CLIP + FAISS and returns TCGdex pricing.
-- **Dynamic Island / Lock Screen Live Activity** shows the detected card, market price, and alternative candidates.
+- **Dynamic Island / Lock Screen Live Activity / floating overlay** shows the detected card, market price, and alternative candidates.
 - **Web demo** runs in any browser for quick PC or phone testing.
 
 ## Data sources
