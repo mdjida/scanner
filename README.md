@@ -16,9 +16,35 @@ Drag a card image into the web page, click **Scan Card**, and watch the Dynamic 
 
 For phone-browser testing, see [web/README.md](web/README.md).
 
+## Android app
+
+A native Android scanner is included in [`android/`](android/). It connects to the same Python backend running on your local PC (recommended for heavy CLIP/OCR inference on low-RAM devices).
+
+### 1. Start the PC backend
+
+```powershell
+cd C:\Users\M\LiveCompOverlay\backend
+.\venv\Scripts\Activate.ps1
+$env:HOST="0.0.0.0"
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### 2. Pair your phone
+
+Open `http://<pc-ip>:8000/mobile.html` in any browser on the same Wi-Fi; it shows a QR code. In the Android app tap **Settings → Scan QR**.
+
+### 3. Scan cards
+
+Tap **Scan Card** in the app. The PC backend returns the exact card, set, collector number, confidence, and TCGdex prices by condition.
+
+### Notes
+
+- The backend now unloads the RapidOCR ONNX session after each scan by default (`LCO_UNLOAD_OCR_AFTER_SCAN=1`) to keep 8 GB PCs from freezing under back-to-back scans.
+- If you have more RAM, set `$env:LCO_UNLOAD_OCR_AFTER_SCAN="0"` for faster repeat scans.
+
 ## Architecture
 
-- **iOS app** detects cards from screen-capture frames and sends cropped images to the backend.
+- **iOS / Android app** detects cards from screen-capture frames or camera and sends cropped images to the backend.
 - **Backend** (Python/FastAPI) runs on your local PC for free. It identifies cards using CLIP + FAISS and returns TCGdex pricing.
 - **Dynamic Island / Lock Screen Live Activity** shows the detected card, market price, and alternative candidates.
 - **Web demo** runs in any browser for quick PC or phone testing.
@@ -44,5 +70,7 @@ See [BUILD.md](BUILD.md) for the GitHub Actions + XcodeGen workflow and real-dev
 4. ✅ Dynamic Island / Lock Screen Live Activity UI
 5. ✅ Manual + auto scan modes with quota tracking
 6. ✅ Web demo for browser-based testing
-7. ⏳ Sports card support
-8. ⏳ Subscription + App Store release
+7. ✅ Android camera scanner
+8. ⏳ Sports card support
+9. ⏳ Subscription + App Store release
+

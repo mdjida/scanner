@@ -50,7 +50,22 @@ Thumbs.db
 backend/uvicorn.log
 backend/uvicorn.err
 backend/image_cache/
+backend/svr*.log
+backend/svr*.err
+backend/*.log
+backend/*.err
 
 tests/browser-extension/.venv/
 tests/browser-extension/user-data/
 tests/browser-extension/page-dump.html
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/*.iml
+android/app/build/
+android/build/
+android/captures/
+android/externalNativeBuild/
+android/cxx/
