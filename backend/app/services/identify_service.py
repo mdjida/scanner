@@ -84,6 +84,15 @@ def identify_image(
             except Exception as e:
                 print(f"  sparse OCR failed: {e}")
 
+        # On low-RAM machines, unload the ONNX OCR session after each scan so
+        # multiple back-to-back scans from a phone don't OOM the PC. The next
+        # scan will reload it (~1-2s).
+        if os.getenv("LCO_UNLOAD_OCR_AFTER_SCAN", "1") == "1":
+            try:
+                ocr._reset_engine()
+            except Exception as e:
+                print(f"  OCR unload failed: {e}")
+
         name_cands = extract_card_name_candidates(ocr_lines)
         query_type = classify_query_type(None, ocr_lines)
         top_tokens = [tok for tok, _sc in name_cands[:3]]
