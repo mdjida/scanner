@@ -1,34 +1,19 @@
-# Xcode
-*.xcworkspace
-*.xcuserdata
-*.xccheckout
-*.moved-aside
-DerivedData/
-build/
-*.ipa
-*.dSYM.zip
-*.dSYM
+# Android SDK tools we bundle just for ADB
+tools/
 
-# XcodeGen
-*.xcodeproj
-!*.xcodeproj/project.xcworkspace/xcshareddata/
+# iOS build logs
+*.xcresult
 
-# macOS
-.DS_Store
-
-# Swift Package Manager
-.build/
-.swiftpm/
-Package.resolved
-
-# Ruby / Fastlane
-vendor/
-Gemfile.lock
-*.gem
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/*.iml
+android/app/build/
+android/build/
+android/captures/
+android/externalNativeBuild/
+android/cxx/
 
 # Python backend virtual environment
 backend/venv/
@@ -59,13 +44,34 @@ tests/browser-extension/.venv/
 tests/browser-extension/user-data/
 tests/browser-extension/page-dump.html
 
-# Android
-android/.gradle/
-android/.idea/
-android/local.properties
-android/**/*.iml
-android/app/build/
-android/build/
-android/captures/
-android/externalNativeBuild/
-android/cxx/
+# macOS
+.DS_Store
+
+# Xcode
+*.xcworkspace
+*.xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# XcodeGen
+*.xcodeproj
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Ruby / Fastlane
+vendor/
+Gemfile.lock
+*.gem
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output

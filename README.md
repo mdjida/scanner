@@ -66,6 +66,26 @@ The terminal prints the exact LAN URL, e.g. `http://192.168.1.119:8000`.
 
 See [backend/README.md](backend/README.md) for one-command setup and run instructions.
 
+### Phone cannot reach the PC over Wi-Fi?
+
+Some routers (especially Spectrum/ISP gateways) block devices from talking to each other. If the phone can't open `http://<pc-ip>:8000`, use the USB fallback:
+
+1. Enable **USB debugging** on the phone:
+   - Settings → About phone → tap **Build number** 7 times.
+   - Settings → System → Developer options → turn on **USB debugging**.
+2. Plug the phone into the PC with a USB cable and tap **Allow** on the phone.
+3. On the PC, run:
+   ```powershell
+   cd C:\Users\M\LiveCompOverlay
+   .\connect_phone.bat
+   ```
+4. In the Android app Settings, set the backend URL to:
+   ```
+   http://localhost:8000
+   ```
+
+`adb reverse tcp:8000 tcp:8000` routes the phone's `localhost:8000` straight to the PC backend over USB, bypassing Wi-Fi/router issues entirely.
+
 ## iOS build
 
 See [BUILD.md](BUILD.md) for the GitHub Actions + XcodeGen workflow and real-device instructions.

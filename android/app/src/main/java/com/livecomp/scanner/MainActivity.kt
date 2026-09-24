@@ -193,7 +193,7 @@ fun ControlScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var backendUrl by remember { mutableStateOf("http://192.168.1.100:8000") }
+    var backendUrl by remember { mutableStateOf("http://localhost:8000") }
     var status by remember { mutableStateOf("Idle") }
     var showSettings by remember { mutableStateOf(false) }
 
@@ -291,12 +291,12 @@ fun SettingsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Backend URL") },
         text = {
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                label = { Text("http://192.168.x.x:8000") },
-                singleLine = true
-            )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("http://localhost:8000  (USB) or http://192.168.x.x:8000 (Wi-Fi)") },
+                    singleLine = true
+                )
         },
         confirmButton = {
             TextButton(onClick = { onSave(url); onDismiss() }) {
