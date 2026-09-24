@@ -3,47 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Live Comp — Mobile Pairing</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Live Comp Scanner</title>
   <link rel="stylesheet" href="mobile.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Live Comp Mobile</h1>
-    <p class="subtitle">Pair your Android phone with this PC backend.</p>
+  <div id="app">
 
-    <div class="qr-wrap" id="qr"></div>
-    <div class="url" id="url">Detecting…</div>
-
-    <ol class="steps">
-      <li>Make sure your phone is on the same Wi-Fi as this PC.</li>
-      <li>Open the Android app and tap <strong>Settings → Scan QR</strong>.</li>
-      <li>Point the camera at the QR code above.</li>
-      <li>Tap <strong>Scan Card</strong> in the app.</li>
-    </ol>
-
-    <a href="index.html" class="button">Open desktop demo</a>
-
-    <div class="footer">
-      If auto-discovery fails, enter the URL manually in the Android app.
+    <!-- Start screen -->
+    <div id="start">
+      <div class="logo">Live Comp</div>
+      <p>Point your phone camera at a Pokémon card and tap the shutter.</p>
+      <button class="btn btn-primary" id="btn-start">Open Camera</button>
     </div>
+
+    <!-- Camera screen -->
+    <div id="camera" style="display:none;">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="fallback-img" alt="captured frame" />
+      <div id="overlay">
+        <div class="guide"></div>
+        <div class="hint" id="camera-hint">Center the card in the frame</div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings">
+      <label for="backend-url">Backend URL (PC IP)</label>
+      <input type="text" id="backend-url" placeholder="http://192.168.1.100:8000" />
+      <button class="btn btn-primary" id="btn-save">Save</button>
+      <button class="btn btn-secondary" id="btn-discover">Auto-discover</button>
+      <div id="settings-status"></div>
+    </div>
+
+    <!-- Controls / Result -->
+    <div id="controls" style="display:none;">
+      <div id="status">Ready</div>
+      <button class="btn btn-primary" id="btn-scan">Scan Card</button>
+      <button class="btn btn-secondary" id="btn-settings">Settings</button>
+      <div id="result"></div>
+    </div>
+
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script>
-    async function discover() {
-      try {
-        const res = await fetch('/admin/info');
-        const data = await res.json();
-        const url = data.backend_url || `http://${data.lan_ip}:8000`;
-        document.getElementById('url').textContent = url;
-        QRCode.toCanvas(document.getElementById('qr'), url, { width: 220 }, (err) => {
-          if (err) console.error(err);
-        });
-      } catch (e) {
-        document.getElementById('url').textContent = 'Could not detect backend. Make sure the PC server is running.';
-      }
-    }
-    discover();
-  </script>
+  <script src="mobile.js"></script>
 </body>
 </html>

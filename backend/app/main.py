@@ -1,5 +1,6 @@
 import sys
 import os
+import socket
 
 # Ensure the backend folder is on the path for imports.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,10 +18,31 @@ from sqlalchemy.orm import Session
 from app.models.database import SessionLocal
 
 
+def _get_lan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables on startup.
     Base.metadata.create_all(bind=engine)
+
+    ip = _get_lan_ip()
+    url = f"http://{ip}:{PORT}"
+    print("=" * 60)
+    print(" Live Comp Overlay backend running")
+    print(f"   Health check: {url}/health")
+    print(f"   Mobile scan:  {url}/mobile.html")
+    print(f"   Admin info:   {url}/admin/info")
+    print("=" * 60, flush=True)
     yield
 
 
