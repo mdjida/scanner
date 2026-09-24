@@ -27,11 +27,11 @@ Both modes send images to the same Python backend for identification. For now th
 
 ### Run the backend on your PC
 
+Double-click `start_backend.ps1` in this folder, or run from PowerShell:
+
 ```powershell
-cd C:\Users\M\LiveCompOverlay\backend
-.\venv\Scripts\Activate.ps1
-$env:HOST="0.0.0.0"
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+cd C:\Users\M\LiveCompOverlay
+.\start_backend.ps1
 ```
 
 The terminal prints the exact LAN URL, e.g. `http://192.168.1.119:8000`.

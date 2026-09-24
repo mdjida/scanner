@@ -5,14 +5,16 @@ import socket
 # Ensure the backend folder is on the path for imports.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, Depends, File, UploadFile, HTTPException
+from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.models import Base, engine, get_db, Card, PricePoint
 from app.routers import cards, identify, admin
-from app.config import HOST, PORT
+from app.config import HOST, PORT, BASE_DIR
 from app.models import Card
 from sqlalchemy.orm import Session
 from app.models.database import SessionLocal
@@ -85,6 +87,24 @@ def catalog_status():
         }
     finally:
         db.close()
+
+
+# Serve known web files explicitly as a catch-all. Must be LAST so API routes
+# like /health and /identify are matched first.
+WEB_DIR = BASE_DIR.parent / "web"
+web_files = {
+    "mobile.html", "mobile.js", "mobile.css",
+    "pair.html", "mobile-pair.css",
+}
+
+@app.get("/{path:path}")
+def static_web_fallback(request: Request, path: str):
+    file_name = path.split("/")[-1] if path else "index.html"
+    if file_name in web_files:
+        target = WEB_DIR / file_name
+        if target.exists():
+            return FileResponse(str(target))
+    raise HTTPException(status_code=404, detail="Not Found")
 
 
 if __name__ == "__main__":
