@@ -1,3 +1,4 @@
+import traceback
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -52,6 +53,7 @@ async def identify_card(
     except FileNotFoundError:
         raise HTTPException(status_code=503, detail="FAISS index not built. Run ingestion first.")
     except Exception as e:
+        print("IDENTIFY TRACEBACK:\n" + traceback.format_exc(), flush=True)
         raise HTTPException(status_code=500, detail=f"Identification failed: {e}")
 
     best = result.get("best_match")

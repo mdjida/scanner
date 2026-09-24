@@ -12,7 +12,10 @@ from app.services.textmatcher import (
     normalize,
     extract_card_name_candidates,
     match_collector_split,
+    classify_query_type,
+    QueryType,
 )
+from app.services.identify_merge import MergeContext
 from app.services import identify_merge
 
 CONFIDENCE_LABELS = {
@@ -61,6 +64,7 @@ def identify_image(
     ocr_lines: list = []
     text_external_ids: List[str] = []
     text_score_map: dict = {}
+    collector_candidates: List[str] = []
     collector: Optional[str] = None
     ocr_name: Optional[str] = None
 
@@ -71,30 +75,56 @@ def identify_image(
             print(f"  OCR failed: {e}")
             ocr_lines = []
 
+        # Sparse reads (e.g. Basic Energy cards) miss the title and collector
+        # lines entirely; run a second pass on enlarged top/bottom bands.
+        if len(ocr_lines) < 4:
+            try:
+                ocr_lines += ocr.ocr_crop_pass(image, "top")
+                ocr_lines += ocr.ocr_crop_pass(image, "bottom")
+            except Exception as e:
+                print(f"  sparse OCR failed: {e}")
+
         name_cands = extract_card_name_candidates(ocr_lines)
+        query_type = classify_query_type(None, ocr_lines)
+        top_tokens = [tok for tok, _sc in name_cands[:3]]
+        text_score_map: dict = {}
         best_name_score = 0.0
-        for tok, _sc in name_cands[:6]:
-            matches = match_name_fuzzy(tok, db, limit=6)
+        for tok in top_tokens:
+            matches = match_name_fuzzy(tok, db, limit=8, query_type=query_type, extra_tokens=top_tokens)
             if not matches:
                 continue
             top_score = max(sc for _, sc in matches)
             if top_score > best_name_score:
                 best_name_score = top_score
                 ocr_name = tok
-                text_external_ids = [ext for ext, sc in matches if sc >= 68]
-                text_score_map = {ext: max(text_score_map.get(ext, 0.0), sc) for ext, sc in matches if sc >= 68}
+            for ext, sc in matches:
+                if sc >= 68 and sc > text_score_map.get(ext, 0.0):
+                    text_score_map[ext] = sc
+        text_external_ids = [ext for ext, sc in sorted(text_score_map.items(), key=lambda kv: -kv[1])]
         if best_name_score <= 0:
             ocr_name = None
 
-        for _txt, _c, _bbox, _region in ocr_lines:
-            collector = ocr.find_collector(_txt)
-            if collector:
-                break
+        # Collector candidates: prefer plain 'N/DD', tolerate merged/slash-missed
+        # digit runs ('38795' -> '38/95'). Exact set-size alignment happens below.
+        collector_candidates = ocr.find_collector_in_lines(ocr_lines)
+        collector_candidates = [
+            cc for cc in collector_candidates
+            if _plausible_collector(cc)
+        ]
+        collector = collector_candidates[0] if collector_candidates else None
 
     # 3) Merge textual + visual evidence.
     collector_aligned, collector_possible = [], []
-    if collector:
-        collector_aligned, collector_possible = match_collector_split(collector, None, db)
+    if collector_candidates:
+        for cc in collector_candidates:
+            try:
+                a, p = match_collector_split(cc, None, db)
+            except Exception:
+                continue
+            collector_aligned.extend(a)
+            collector_possible.extend(p)
+        collector_aligned = list(dict.fromkeys(collector_aligned))
+        collector_possible = list(dict.fromkeys(collector_possible))
 
     if text_external_ids or collector_aligned or collector_possible:
         merged = identify_merge.merge(
@@ -106,6 +136,7 @@ def identify_image(
             card_name=ocr_name,
             visual=visual,
             prefer_visual=prefer_visual,
+            ctx=MergeContext(query_type=query_type, has_collector=bool(collector_aligned)),
         )
         if merged:
             result["best_match"] = merged["best"]
@@ -140,3 +171,13 @@ def _visual_confidence(best_score: float, visual: List[Tuple[Card, float]]) -> s
     if best_score >= 0.78:
         return "low"
     return "uncertain"
+
+
+def _plausible_collector(collector: str) -> bool:
+    """Only treat a collector string as usable when its shape is plausible."""
+    try:
+        n, d = collector.split('/')
+        num, den = int(n), int(d)
+        return 1 <= num <= den and 30 <= den <= 400
+    except Exception:
+        return False

@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from enum import Enum
 from typing import List, Optional, Tuple
 
 from rapidfuzz import fuzz, process
@@ -7,6 +8,82 @@ from sqlalchemy.orm import Session
 
 from app.models import Card
 
+
+class QueryType(Enum):
+    POKEMON = "pokemon"
+    TRAINER = "trainer"
+    ENERGY = "energy"
+    UNKNOWN = "unknown"
+
+
+TRAINER_KEYWORDS = {"trainer", "supporter", "stadium", "item", "tool", "technical machine"}
+ENERGY_KEYWORDS = {"energy", "basic energy", "special energy"}
+ENERGY_SINGLE = ("energy",)
+ENERGY_MULTI = ("basic energy", "special energy")
+TRAINER_SINGLE = ("trainer", "supporter", "stadium", "item", "tool")
+TRAINER_MULTI = ("pokemon tool", "technical machine")
+
+
+def _fuzzy_hit(text: str, single_terms, multi_terms) -> bool:
+    """True when any OCR token is close to one of the given terms (tolerant of
+    OCR typos like 'enerey' -> energy). Multi-word terms must match a token pair
+    (tight threshold), and single terms require a length-proportional match, so
+    bare 'basic', 'pokemon', 'to' or 'on' lines never classify as energy/trainer."""
+    words = text.split()
+    for w in words:
+        for t in single_terms:
+            if len(w) < max(3, len(t) - 2):
+                continue
+            try:
+                if fuzz.WRatio(w, t) >= 80:
+                    return True
+            except Exception:
+                continue
+    for i in range(len(words) - 1):
+        gram = words[i] + " " + words[i + 1]
+        for t in multi_terms:
+            try:
+                if fuzz.WRatio(gram, t) >= 90:
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def classify_query_type(name_query: Optional[str], lines: Optional[List[Tuple[str, float, object, str]]] = None) -> QueryType:
+    """Classify what kind of card the OCR is describing (also tolerant of
+    OCR typos in the type words, e.g. 'enerey' -> energy)."""
+    text = normalize(name_query or "")
+    for item in lines or []:
+        if not isinstance(item, (tuple, list)) or len(item) < 4:
+            continue
+        try:
+            text += " " + normalize(str(item[0]))
+        except Exception:
+            continue
+    words = set(text.split())
+    if words & ENERGY_KEYWORDS or _fuzzy_hit(text, ENERGY_SINGLE, ENERGY_MULTI):
+        return QueryType.ENERGY
+    if words & TRAINER_KEYWORDS or _fuzzy_hit(text, TRAINER_SINGLE, TRAINER_MULTI):
+        return QueryType.TRAINER
+    return QueryType.POKEMON
+
+
+def _type_boost(external_id: str, query_type: QueryType, db: Session) -> float:
+    """Return a small score bonus for cards whose name matches the query type."""
+    if query_type == QueryType.UNKNOWN:
+        return 0.0
+    card = db.query(Card).filter(Card.external_id == external_id).first()
+    if not card:
+        return 0.0
+    name = normalize(card.name or "")
+    if query_type == QueryType.ENERGY and "energy" in name:
+        return 0.06
+    if query_type == QueryType.TRAINER and (TRAINER_KEYWORDS & set(name.split())):
+        return 0.06
+    if query_type == QueryType.POKEMON and not (TRAINER_KEYWORDS | ENERGY_KEYWORDS) & set(name.split()):
+        return 0.02
+    return 0.0
 
 def normalize(text: str) -> str:
     """Normalize a string for matching: strip accents, collapse spaces, drop noise."""
@@ -44,16 +121,48 @@ def _clean_name_token(text: str) -> Optional[str]:
     return n or None
 
 
-def match_name_fuzzy(name_query: str, db: Session, limit: int = 12) -> List[Tuple[str, float]]:
+def _strip_junk_suffix(q: str) -> str:
+    """Drop trailing OCR junk like 'cw.62' / '.62' / '62' appended to a card name.
+
+    Keeps the leading letter where the junk glued onto it, e.g. 'Garchomp Cw.62'
+    -> 'garchomp c' (the 'C' is part of the real name).
+    """
+    n = (q or "").strip()
+    n = re.sub(r"(?i)\s+([a-z])[a-z]{0,3}\.?[0-9]{1,3}$", lambda m: " " + m.group(1), n).strip()
+    n = re.sub(r"(?i)\s*\.?[0-9]{1,3}$", "", n).strip()
+    return n or (q or "").strip()
+
+
+def match_name_fuzzy(
+    name_query: str,
+    db: Session,
+    limit: int = 12,
+    query_type: QueryType = QueryType.UNKNOWN,
+    extra_tokens=(),
+) -> List[Tuple[str, float]]:
     """Fuzzy-match a name string against all card names in the DB.
 
-    Returns list of (external_id, score 0-100). Scores >= ~80 are strong.
+    Returns list of (external_id, score 0-100+). Scores >= ~80 are strong.
+    When query_type is trainer/energy, cards of that type get a small boost.
+    extra_tokens: additional title-region OCR tokens (e.g. a 'team magmas'
+    prefix) used as a cross-set disambiguation signature: cards whose name
+    contains every observed token get a bonus, so 'Team Magma's Rhyhorn'
+    beats plain 'Rhyhorn' when both are close.
     """
     if not name_query:
         return []
-    q = normalize(name_query)
+    cleaned = _strip_junk_suffix(str(name_query))
+    q = normalize(cleaned)
     if len(q) < 2:
         return []
+
+    sig: List[str] = []
+    for t in list(extra_tokens or ()) + [cleaned]:
+        try:
+            sig.append(re.sub(r"[^\w]", "", normalize(_strip_junk_suffix(str(t)))))
+        except Exception:
+            continue
+    sig = list(dict.fromkeys(w for w in sig if w and len(w) >= 2))
 
     # Build a map name -> list of external_ids, then fuzzy match names once.
     name_map: dict[str, List[str]] = {}
@@ -67,7 +176,7 @@ def match_name_fuzzy(name_query: str, db: Session, limit: int = 12) -> List[Tupl
         q,
         names,
         scorer=fuzz.WRatio,
-        limit=min(limit * 2, len(names)) if names else 0,
+        limit=min(limit * 3, len(names)) if names else 0,
     )
     out = []
     seen = set()
@@ -76,10 +185,17 @@ def match_name_fuzzy(name_query: str, db: Session, limit: int = 12) -> List[Tupl
             if external_id in seen:
                 continue
             seen.add(external_id)
-            out.append((external_id, float(score)))
-            if len(out) >= limit:
-                return out
-    return out
+            type_bonus = _type_boost(external_id, query_type, db)
+            raw = max(0.0, min(100.0, float(score) + type_bonus * 100))
+            # Cross-set/prefix tiebreak: prefer cards whose full name contains
+            # every token the OCR actually saw in the title region.
+            if sig:
+                name_col = re.sub(r"[^\w]", "", normalize(matched_name))
+                present = sum(1 for w in sig if w in name_col)
+                raw = raw + 20.0 * present
+            out.append((external_id, raw))
+    out.sort(key=lambda kv: -kv[1])
+    return out[:limit]
 
 
 def best_name_match(name_query: str, db: Session) -> Optional[Tuple[str, float]]:
@@ -95,7 +211,14 @@ def best_name_match(name_query: str, db: Session) -> Optional[Tuple[str, float]]
 def extract_card_name_candidates(lines: List[Tuple[str, float, object, str]]) -> List[Tuple[str, float]]:
     """From OCR lines, return plausible card-name text + confidence, best first."""
     ranked = []
-    for text, conf, _bbox, region in lines:
+    for item in lines:
+        if not isinstance(item, (tuple, list)) or len(item) < 4:
+            continue
+        text, conf, _bbox, region = item[:4]
+        try:
+            conf = float(conf)
+        except Exception:
+            continue
         if region not in ("top", "title"):
             continue
         t = _clean_name_token(text)
