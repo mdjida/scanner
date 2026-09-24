@@ -16,7 +16,7 @@ function Ensure-FirewallRule {
                 -LocalPort 8000 `
                 -Protocol TCP `
                 -Action Allow `
-                -Profile Private,Domain `
+                -Profile Private,Domain,Public `
                 -ErrorAction Stop | Out-Null
             Write-Host "Firewall rule added for port 8000 (private/domain networks)." -ForegroundColor Green
         } else {
